@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -27,7 +27,7 @@ jobs:
       - run: pytest
       - name: Retain test and coverage evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-evidence
           path: |
@@ -43,7 +43,7 @@ jobs:
       - name: Build image
         run: docker build -t tracker:${{ github.sha }} .
       - name: Scan the exact built image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: tracker:${{ github.sha }}
           severity: HIGH,CRITICAL
