@@ -1,0 +1,75 @@
+name: Continuous integration
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: bandit -r app -ll
+      - run: pip-audit -r requirements.txt
+      - run: pytest
+      - name: Retain test and coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-evidence
+          path: |
+            test-results.xml
+            coverage.xml
+          if-no-files-found: warn
+  container:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t tracker:${{ github.sha }} .
+      - name: Scan the exact built image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: tracker:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: false
+          format: table
+      - name: Start container and verify API
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name tracker --read-only --tmpfs /tmp --tmpfs /data:uid=10001,gid=10001 --cap-drop ALL --security-opt no-new-privileges:true -p 127.0.0.1:8000:8000 tracker:${{ github.sha }}
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/readyz; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8000/readyz
+          curl -fsS -H 'Content-Type: application/json' -d '{"title":"Container integration check"}' http://127.0.0.1:8000/api/requests
+          curl -fsS http://127.0.0.1:8000/api/requests | python -c 'import json,sys; rows=json.load(sys.stdin); assert rows[0]["title"] == "Container integration check"'
+      - name: Retain container logs
+        if: always()
+        run: docker logs tracker > container.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-evidence
+          path: container.log
+      - name: Remove test container
+        if: always()
+        run: docker rm -f tracker || true

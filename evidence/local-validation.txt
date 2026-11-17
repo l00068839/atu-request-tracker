@@ -1,0 +1,70 @@
+LOCAL VALIDATION — 12 November 2026
+Assistant-side execution, not GitHub, Docker or cloud evidence.
+
+$ ruff check .
+All checks passed!
+
+Exit: 0
+
+$ bandit -r app -ll
+Run started:2026-11-12 20:34:23.207093+00:00
+
+Test results:
+	No issues identified.
+
+Code scanned:
+	Total lines of code: 74
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 0
+Files skipped (0):
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	running on Python 3.12.14
+
+Exit: 0
+
+$ pytest
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.2.0, pluggy-1.7.0
+rootdir: /workspace/scratch/2697d4efcb85/atu-request-tracker
+configfile: pyproject.toml
+testpaths: tests
+plugins: platformdirs-4.14.5, cov-7.1.0
+collected 17 items
+
+tests/test_app.py .................                                      [100%]
+
+- generated xml file: /workspace/scratch/2697d4efcb85/atu-request-tracker/test-results.xml -
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.14-final-0 _______________
+
+Name              Stmts   Miss Branch BrPart  Cover   Missing
+-------------------------------------------------------------
+app/__init__.py      66      0      8      1    99%   17->19
+-------------------------------------------------------------
+TOTAL                66      0      8      1    99%
+Coverage XML written to file coverage.xml
+Required test coverage of 90% reached. Total coverage: 98.65%
+============================== 17 passed in 0.81s ==============================
+
+Exit: 0
+
+$ pip-audit -r requirements.txt
+No known vulnerabilities found
+Exit: 0
+
+Docker is unavailable in this execution environment. Container build, image scanning and GitHub Actions have not been executed.

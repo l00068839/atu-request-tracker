@@ -1,0 +1,15 @@
+[2026-11-12 20:34:41 +0000] [6] [INFO] Starting gunicorn 27.0.0
+[2026-11-12 20:34:41 +0000] [6] [INFO] Listening at: http://127.0.0.1:8765 (6)
+[2026-11-12 20:34:41 +0000] [6] [INFO] Using worker: gthread
+[2026-11-12 20:34:41 +0000] [7] [INFO] Booting worker with pid: 7
+[2026-11-12 20:34:41 +0000] [6] [ERROR] Control server error: [Errno 1] Operation not permitted
+[2026-11-12 20:34:41,675] INFO in __init__: {"event": "http_request", "method": "GET", "route": "/readyz", "status": 200, "duration_ms": 0.673}
+[2026-11-12 20:34:41,682] INFO in __init__: {"event": "http_request", "method": "GET", "route": "/", "status": 200, "duration_ms": 2.399}
+[2026-11-12 20:34:41,685] INFO in __init__: {"event": "http_request", "method": "GET", "route": "/healthz", "status": 200, "duration_ms": 0.061}
+[2026-11-12 20:34:41,688] INFO in __init__: {"event": "http_request", "method": "GET", "route": "/metrics", "status": 200, "duration_ms": 0.863}
+[2026-11-12 20:34:41 +0000] [6] [INFO] Handling signal: term
+[2026-11-12 20:34:41 +0000] [7] [INFO] Worker exiting (pid: 7)
+[2026-11-12 20:34:41 +0000] [6] [INFO] Shutting down: Master
+PASS HTTP GET /: 200
+PASS HTTP GET /healthz: 200
+PASS HTTP GET /metrics: 200

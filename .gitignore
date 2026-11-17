@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+test-results.xml
+*.db
+.env
+*.tfstate*
+.terraform/
+*.tfvars
+!*.tfvars.example
+kubeconfig*
