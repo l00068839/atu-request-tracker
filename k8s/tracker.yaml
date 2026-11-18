@@ -1,0 +1,108 @@
+﻿apiVersion: v1
+kind: Namespace
+metadata:
+  name: tracker
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tracker-data
+  namespace: tracker
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracker
+  namespace: tracker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tracker
+  template:
+    metadata:
+      labels:
+        app: tracker
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: tracker
+          image: ghcr.io/l00068839/atu-request-tracker@sha256:69fba325406129ab8d89aca7f7df79c9ace487210a5cb6072e8249100f813fd2
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: DATABASE
+              value: /data/requests.db
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tracker-data
+        - name: temporary
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracker
+  namespace: tracker
+spec:
+  type: ClusterIP
+  selector:
+    app: tracker
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,2 @@
+﻿instance_id = "i-06bb48983057e1c8e"
+public_ip = "34.250.15.204"
