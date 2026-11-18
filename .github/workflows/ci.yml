@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   quality:
@@ -155,3 +155,140 @@ jobs:
       - name: Remove test container
         if: always()
         run: docker rm -f tracker || true
+  deploy:
+    needs: container
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download this run's published image digest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "${GITHUB_RUN_ID}" --name published-image-digest
+
+      - name: Authenticate to AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::077815499909:role/atu-github-deploy
+          aws-region: eu-west-1
+          allowed-account-ids: '077815499909'
+          role-session-name: atu-deploy-${{ github.run_id }}
+
+      - name: Prepare deployment command
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import io
+          import json
+          import pathlib
+          import re
+          import tarfile
+
+          digests = json.loads(pathlib.Path("image-digest.txt").read_text())
+          if not isinstance(digests, list) or len(digests) != 1:
+              raise SystemExit("Expected exactly one published image digest.")
+          image = digests[0]
+          if not re.fullmatch(
+              r"ghcr\.io/l00068839/atu-request-tracker@sha256:[a-f0-9]{64}",
+              image,
+          ):
+              raise SystemExit("Unexpected image digest.")
+
+          archive = io.BytesIO()
+          with tarfile.open(fileobj=archive, mode="w:gz") as bundle:
+              for name in (
+                  "scripts/bootstrap-k3s.sh",
+                  "scripts/deploy.sh",
+                  "k8s/tracker.yaml",
+              ):
+                  bundle.add(name, arcname=name)
+
+          payload = base64.b64encode(archive.getvalue()).decode("ascii")
+          command = "\n".join([
+              "set -eu",
+              "DEPLOY_DIR=$(mktemp -d)",
+              "trap 'rm -rf \"$DEPLOY_DIR\"' EXIT",
+              f"printf '%s' '{payload}' | base64 -d | tar -xz -C \"$DEPLOY_DIR\"",
+              f'bash "$DEPLOY_DIR/scripts/deploy.sh" \'{image}\'',
+          ])
+          request = {
+              "DocumentName": "AWS-RunShellScript",
+              "InstanceIds": ["i-06bb48983057e1c8e"],
+              "Comment": "ATU GitHub Actions deployment",
+              "TimeoutSeconds": 120,
+              "Parameters": {
+                  "commands": [command],
+                  "executionTimeout": ["600"],
+              },
+          }
+          pathlib.Path("ssm-request.json").write_text(json.dumps(request))
+          pathlib.Path("deployed-image.txt").write_text(image + "\n")
+          PY
+
+      - name: Deploy and check result
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          COMMAND_ID=$(aws ssm send-command \
+            --cli-input-json file://ssm-request.json \
+            --query 'Command.CommandId' --output text)
+
+          echo "SSM command: ${COMMAND_ID}"
+
+          for attempt in {1..120}; do
+            if aws ssm get-command-invocation \
+              --command-id "${COMMAND_ID}" \
+              --instance-id i-06bb48983057e1c8e \
+              > deployment-result.json 2> deployment-poll-error.txt; then
+
+              STATUS=$(python3 -c \
+                'import json; print(json.load(open("deployment-result.json"))["Status"])')
+
+              case "${STATUS}" in
+                Success)
+                  python3 -c \
+                    'import json; r=json.load(open("deployment-result.json")); print(r["StandardOutputContent"])'
+                  {
+                    echo "### AWS deployment succeeded"
+                    echo
+                    cat deployed-image.txt
+                    echo
+                    echo "Instance: i-06bb48983057e1c8e"
+                    echo "Rollout and application readiness checks passed."
+                  } >> "${GITHUB_STEP_SUMMARY}"
+                  exit 0
+                  ;;
+                Pending|InProgress|Delayed)
+                  ;;
+                *)
+                  cat deployment-result.json
+                  exit 1
+                  ;;
+              esac
+            fi
+            sleep 5
+          done
+
+          echo "Timed out waiting for the deployment result."
+          cat deployment-result.json deployment-poll-error.txt || true
+          exit 1
+
+      - name: Retain deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: deployment-evidence
+          path: |
+            deployed-image.txt
+            deployment-result.json
+            deployment-poll-error.txt
+          if-no-files-found: warn

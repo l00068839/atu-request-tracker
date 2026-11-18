@@ -12,3 +12,6 @@ test-results.xml
 *.tfvars
 !*.tfvars.example
 kubeconfig*
+
+# Saved Terraform plans
+*.tfplan
