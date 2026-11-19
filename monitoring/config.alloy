@@ -1,0 +1,51 @@
+logging {
+  level = "info"
+}
+
+discovery.kubernetes "tracker" {
+  role = "pod"
+
+  namespaces {
+    names = ["tracker"]
+  }
+
+  selectors {
+    role  = "pod"
+    label = "app=tracker"
+  }
+}
+
+discovery.relabel "tracker" {
+  targets = discovery.kubernetes.tracker.targets
+
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label  = "pod"
+  }
+
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label  = "container"
+  }
+
+  rule {
+    target_label = "app"
+    replacement  = "tracker"
+  }
+}
+
+loki.source.kubernetes "tracker" {
+  targets    = discovery.relabel.tracker.output
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

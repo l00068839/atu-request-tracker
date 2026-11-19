@@ -39,3 +39,5 @@ k3s kubectl exec -n tracker deployment/tracker -- python -c \
 
 k3s kubectl get pods,pvc,svc -n tracker
 echo "Deployed image: ${IMAGE}"
+
+bash "${PROJECT_DIR}/scripts/deploy-monitoring.sh"

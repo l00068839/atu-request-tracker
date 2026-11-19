@@ -1,0 +1,25 @@
+groups:
+  - name: tracker
+    rules:
+      - alert: TrackerUnavailable
+        expr: up{job="tracker"} == 0 or absent(up{job="tracker"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Request Tracker metrics endpoint is unavailable
+          description: Prometheus has been unable to scrape the application for one minute.
+
+      - alert: TrackerHighServerErrorRate
+        expr: |
+          (
+            sum(rate(tracker_http_requests_total{job="tracker",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(tracker_http_requests_total{job="tracker"}[5m])), 0.001)
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Request Tracker server error rate exceeds 5 percent
+          description: More than 5 percent of requests have returned server errors for two minutes.
