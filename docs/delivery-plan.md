@@ -1,43 +1,51 @@
-# Delivery plan and acceptance criteria
+﻿# Delivery status
 
-Target the highest rubric bands. Marks depend on the implementation, demonstration and lecturer's judgement.
-This package implements the first application/CI stage, not the full Task 3 submission.
+Reviewed: 19 November 2026.
 
-| Stage | Acceptance evidence | Status |
-|---|---|---|
-| Personal repository | Feature branches, meaningful commits, PR checks and release tag | Requires user's GitHub repository |
-| App and tests | Persistent API, input validation, unit/integration tests, >=90% branch-aware coverage | Implemented; see local validation evidence |
-| CI quality gates | Ruff, Bandit, dependency audit, pytest results | Configured; GitHub run pending |
-| Containers | Multi-stage build, non-root user, scan and running-container API test | Configured; Docker execution pending |
-| Supply chain | Publish the scanned image, deploy by digest, SHA-pin actions and base images, SBOM/provenance | Planned |
-| Infrastructure | Terraform AWS Ireland setup, remote protected state, OIDC trust scoped to repo/environment | Planned, account capabilities must be confirmed |
-| Deployment | K3s manifests, persistent volume, probes, limits, automated rollout and smoke test | Planned |
-| Observability | Prometheus, Grafana, Loki and log collector, dashboard, firing/resolved alert | Planned |
-| Recovery | Deliberate failed rollout, previous image digest restored, timings recorded | Planned |
-| Assessment | README, tagged release, live/recorded demo, evidence journal and final reflection | In progress |
+## Implemented and verified
 
-## Practical deployment choice
+- Feature branches, commits and pull requests with automated checks.
+- Flask create/list API with SQLite persistence and automated tests.
+- Ruff, Bandit, pip-audit and pytest quality gates.
+- Multi-stage non-root container build, Trivy scanning and HTTP integration checks.
+- Publication of the tested image to GHCR and deployment by digest.
+- Terraform-managed EC2 instance and security group in AWS Ireland.
+- GitHub OIDC authentication and Systems Manager deployment.
+- K3s deployment with persistent storage, resource limits and health probes.
+- Prometheus scraping and a provisioned Grafana dashboard.
+- Application log collection through Alloy into Loki.
+- Pipeline checks for metrics scraping and end-to-end log delivery.
+- Controlled application outage, availability alert firing and recovery.
+- Permanent Grafana plugin-update fix verified through the deployment pipeline.
 
-Prefer one personal AWS EC2 host running K3s, with Terraform-managed networking and instance profile.
-Do not expose Kubernetes administration or monitoring publicly. Evaluate SSM for remote execution
-and session access, avoiding inbound SSH. GitHub OIDC removes a long-lived AWS access key but needs
-an initial trust role configured by an authorised administrator. An AWS Academy Learner Lab may
-restrict IAM/OIDC, reset sessions, or stop resources, so do not assume it supports this design.
-If permissions prevent it, select local Kubernetes with the lecturer's agreement, as permitted by
-Task 3, and document the compromise. Check current resource costs before provisioning.
+See evidence/README.md for captured results.
 
-A single host is cost-conscious and reproducible, but is not highly available. Instrumentation can
-be resource hungry. Select host size from measured usage. Resource cleanup and budget management
-are part of the runbook. Keep demo request data fictional and bind the app locally until remote
-access and authentication controls are designed.
+## Implementation limits
 
-## Git history and demonstrations
+This is a single-node teaching deployment with one application replica. Local-path volumes survive pod replacement but do not protect against instance or disk loss.
 
-Create real feature branches and focused PRs as work progresses. Do not fabricate reviewers,
-commits, historical problems or retrospective evidence. For an individual project, explain how
-PRs provide reviewable changes and how collaboration would work in a team. Record real peer or
-lecturer feedback separately if obtained. Choose protected-branch settings available on the account.
+Terraform uses an existing VPC, subnet and instance profile. IAM/OIDC was configured separately. Terraform state is local. Recreating the instance requires reviewing workflow and IAM instance references.
 
-The final demo should trace one change through tests, analysis, image scanning, deployment and
-health checks, then show metrics, logs and an alert. Show a controlled failure blocking delivery.
-Keep the failed run URL and subsequent repair. A green workflow alone is not proof of every stage.
+The API has no user authentication or public HTTPS endpoint. Access uses Systems Manager tunnels.
+
+External alert notifications, automated backups, remote Terraform state and SBOM/provenance are not implemented. Action references and base images are not all pinned to immutable digests.
+
+The availability alert was tested. The high-server-error alert, failed-rollout recovery and restoration of a previous image digest were not tested.
+
+Pull requests were used in an individual project. Independent reviewer approval is not claimed.
+
+## Troubleshooting evidence
+
+Actual failures and repairs are retained in the workflow history. These include CI configuration, container vulnerability scanning and OIDC authentication.
+
+Grafana plugin updates initially failed against its read-only filesystem. Disabling automatic plugin updates restored Prometheus and Loki access. The fix was committed, merged and deployed.
+
+## Remaining submission work
+
+- Merge the final documentation and evidence.
+- Check repository links and evidence filenames.
+- Create a release tag for the assessed version.
+- Record and review the five-minute Task 3 demonstration.
+- Confirm submission requirements against the assignment brief.
+
+Task 4 reflection is a separate submission.
